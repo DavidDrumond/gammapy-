@@ -1,8 +1,8 @@
 Metadata-Version: 1.0
 Name: gammapy
-Version: 0.0.0
+Version: 0.1
 Summary: Gammaypy is a computer development to calculate spatial continuity functions,	  				such as variograms, covariograms, madograms, etc.
-Home-page: UNKNOWN
+Home-page: https://github.com/DavidDrumond/gammapy-
 Author: David Drumond
 Author-email: david.engminas.ufmg@gmail.com
 License: Creative Commons Attribution-Noncommercial-Share Alike license

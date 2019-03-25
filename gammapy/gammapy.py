@@ -2,8 +2,6 @@
 
 # IMPORT PACKAGES # 
 
-
-import experimental 
 import numpy as np 
 import pandas as pd 
 import matplotlib.pyplot as plt 
@@ -13,6 +11,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from mpl_toolkits.mplot3d import Axes3D
 
 plt.style.use('seaborn-muted')
+
 
 
 class funcs_3D:
