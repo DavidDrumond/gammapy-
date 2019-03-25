@@ -48,15 +48,57 @@ The 3D experimental functions are related to funcs\_3D object. To create experim
 * **azimuth** = float containing the experimental function azimuth in degrees
 * **dip** = float containing the experimental function dip in degrees
 
-{% hint style="info" %}
-To understand the object methods, please use the help\(\) function
-{% endhint %}
+#### If you have any problem with the class parameters, please use the help\(\) command 
+
+The following methods are used to calculate spatial continuity functions:
+
+## funcs\_3D.distances\(\)
+
+```text
+
+Returns a pandas dataframe with the distances of each pair of 
+samples containing in dataset
+
+>> Output 
+>> ............................................................................. 
+DX  = diference of x cartesian values from the head and tails of the vector 
+DY  = diference of y cartesian values from the head and tails of the vector  
+DZ  = diference of z cartesian values from the head and tails of the vector 
+XY  = Distance projection on XY plane of the vector  
+H   = Distance value from head and tail of vector  
+Var 1 (head) = Value from variable 1 on the head of vector 
+Var 2 (head) = Value from variable 2 on the head of vector  
+Var 1 (tail) = Value from variable 1 on the tail of vector 
+Var 2 (tail) = Value form variable 2 on the tail of vector 
+INDEX HEAD   = Index of propertie 1 sample 
+INDEX TAIL   = Index of propertie 2 sample
+
+```
 
 
 
+## funcs\_3D.permissible\_pairs\_omni \(lag\_multiply\)
+
+```text
+    '''
+    Returns the set of permissible pairs for a lag multiplication of lag_multiply
+    for a omnidirecional search strategy
+
+
+    >> Input 
+    >>............................................................................
+    >> lag_multiply = integer containing theh multiple of lag distance 
+    '''
+```
 
 
 
+## funcs\_3D.permissible\_pairs \(lag\_multiply\)
 
+```text
+    Returns the set of permissible pairs for a lag multiplication of lag_multiply
+    for a directional search strategy
 
+    >> lag_multiply = integer containing theh multiple of lag distance 
+```
 
