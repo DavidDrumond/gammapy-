@@ -48,6 +48,16 @@ The 3D experimental functions are related to funcs\_3D object. To create experim
 * **azimuth** = float containing the experimental function azimuth in degrees
 * **dip** = float containing the experimental function dip in degrees
 
+{% tabs %}
+{% tab title="First Tab" %}
+asdfadfadf
+{% endtab %}
+
+{% tab title="Second Tab" %}
+
+{% endtab %}
+{% endtabs %}
+
 
 
 {% api-method method="get" host="" path="" %}
