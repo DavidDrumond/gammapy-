@@ -48,94 +48,11 @@ The 3D experimental functions are related to funcs\_3D object. To create experim
 * **azimuth** = float containing the experimental function azimuth in degrees
 * **dip** = float containing the experimental function dip in degrees
 
-{% tabs %}
-{% tab title="First Tab" %}
-asdfadfadf
-{% endtab %}
-
-{% tab title="Second Tab" %}
-
-{% endtab %}
-{% endtabs %}
+{% hint style="info" %}
+To understand the object methods, please use the help\(\) function
+{% endhint %}
 
 
-
-{% api-method method="get" host="" path="" %}
-{% api-method-summary %}
-distances
-{% endapi-method-summary %}
-
-{% api-method-description %}
-Return the distance matrix for all samples containined in the dataset 
-{% endapi-method-description %}
-
-{% api-method-spec %}
-{% api-method-request %}
-{% api-method-path-parameters %}
-{% api-method-parameter name="None" type="string" required=false %}
-
-{% endapi-method-parameter %}
-{% endapi-method-path-parameters %}
-{% endapi-method-request %}
-
-{% api-method-response %}
-{% api-method-response-example httpCode=200 %}
-{% api-method-response-example-description %}
-
-{% endapi-method-response-example-description %}
-
-```
-All the distances between samples. 
-H = Euclidian distance 
-XY = projection in XY plane 
-DX = Difference of X coordinates 
-DY = Difference of Y coordinates 
-DZ= Difference of Z coordinates 
-Var 1 head = First property at the head of vector 
-Var 2 head = Second property at the head of vector
-Var 1 tail = First property in the tail of vector 
-Var 2 tail = Second property in the tail of vector
-Index Head = index of the sample  considered in the head 
-Index Tail = index of the sample considered in the tail 
-```
-{% endapi-method-response-example %}
-{% endapi-method-response %}
-{% endapi-method-spec %}
-{% endapi-method %}
-
-
-
-{% api-method method="get" host="" path="" %}
-{% api-method-summary %}
-permissible\_pairs\_omni / permissible\_pairs\_
-{% endapi-method-summary %}
-
-{% api-method-description %}
-Return the distance matrix for all pairs of samples allow to be in the direction \(azimuth/dip\) considered. This function is necessary to calculate directional experimental functions.
-{% endapi-method-description %}
-
-{% api-method-spec %}
-{% api-method-request %}
-{% api-method-path-parameters %}
-{% api-method-parameter name="lag\_multipy" type="number" required=true %}
-Number of lags to calculate the permissible pairs 
-{% endapi-method-parameter %}
-{% endapi-method-path-parameters %}
-{% endapi-method-request %}
-
-{% api-method-response %}
-{% api-method-response-example httpCode=200 %}
-{% api-method-response-example-description %}
-
-{% endapi-method-response-example-description %}
-
-```
-
-```
-{% endapi-method-response-example %}
-{% endapi-method-response %}
-{% endapi-method-spec %}
-{% endapi-method %}
 
 
 
