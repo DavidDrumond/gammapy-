@@ -1,0 +1,7 @@
+README.txt
+setup.py
+gammapy.egg-info/PKG-INFO
+gammapy.egg-info/SOURCES.txt
+gammapy.egg-info/dependency_links.txt
+gammapy.egg-info/not-zip-safe
+gammapy.egg-info/top_level.txt
