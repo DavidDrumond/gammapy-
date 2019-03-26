@@ -13,7 +13,7 @@ Spatial continuity functions are the representation of spatial dependencies amon
 To install the package, clone the folder from repository and run the command in the gammapy\dist folder. 
 
 ```text
-pip install gammapy-0.0.0tar.gz
+pip install gammapy-0.1-py3-none-any.whl
 ```
 
 ## Example
@@ -231,7 +231,7 @@ Returns:
 '''
 ```
 
-## funcs\_3D.modelling\(self, experimental\_dataframe, rotation\_reference, model\_func, ranges, contribution, nugget, inverted= False, plot\_graph = True \)
+## funcs\_3D.covariogram\_map\_3d\(self, df, x\_label, y\_label, z\_label, property\_value, plot= False, division = 20, alpha= 0.7, cutx =\[-np.inf, np.inf\],cuty =\[-np.inf,np.inf\],cutz =\[-np.inf,np.inf\] \)
 
 
 
