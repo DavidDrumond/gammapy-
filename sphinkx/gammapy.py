@@ -13,9 +13,6 @@ import math
 
 plt.style.use('seaborn-muted')
 
-import pathlib
- 
-script_dir = pathlib.Path(__file__).parent.resolve()
 
 
 class funcs_3D:
@@ -27,8 +24,7 @@ class funcs_3D:
 				 htolerance, vtolerance, hband, vband,
 				 azimuth, dip):
 
-		"""
-       funcs_3D
+	   """"funcs_3D
 	   Instances: 
        dataset (pandas.Dataframe): Input Dataframe containing the dataset 
        x_label (string): Label of x coordinates contained in dataset 
@@ -54,7 +50,10 @@ class funcs_3D:
 	       calculate_experimental_omini(self , lag_multiply,  type_var) : Calculate the experimental omnidirecional continuity function value for a distance multiple of a lag and a type of variogram
 	       calculate_experimental_function(self, type_var) : Calculate the experimental continuity function for all lag values 
 	       calculate_experimental_function_omni(self, type_var) : Calculate the omnidirecional experimental continuity function for all lag values
-		"""
+
+	   """
+
+		
 		self.dataset = dataset
 		self.x_label = str(x_label)
 		self.y_label = str(y_label)
@@ -572,22 +571,25 @@ class funcs_3D:
 		return df 
 
 
-	def covariogram_map_3d(self,property_value, neighbors, division = 20, alpha= 0.7,  cutx =[-np.inf, np.inf],cuty =[-np.inf,np.inf],cutz =[-np.inf,np.inf], size =20 ):
+	def covariogram_map_3d(property_value, plot= False, division = 20, alpha= 0.7, cutx =[-np.inf, np.inf],cuty =[-np.inf,np.inf],cutz =[-np.inf,np.inf] ):
 
 		'''covariogram_map_3d
 		Args:
-		property_value(string): String containing the property to create the covariogram map
-		neighbors (int) : Number of neighbors using in KNearest neighbors 
-		division(int, optional): discretize number of covariogram map
-		size(int, optional): size of bullet
-		alpha(float, optional): the level of transparency (0- transparent, 1-solid)
-		cutx (list, optional): list containing the minimum cutsize and the maximum cutsize for x coordinates
-		cuty (list, optional): list containing the minimum cutsize and the maximum cutsize for y coordinates
-		cutz (list, optional): list containing the minimum cutsize and the maximum cutsize for z coordinates
+		 property_value(string): String containing the property to create the covariogram map 
+		 plot(bool, optional): If False do not plot the covariogram map 
+		 division(int, optional): discretize number of covariogram map 
+		 alpha(float, optional): the level of transparency (0- transparent, 1-solid)
+		 cutx (list, optional): list containing the minimum cutsize and the maximum cutsize for x coordinates
+		 cuty (list, optional): list containing the minimum cutsize and the maximum cutsize for y coordinates
+		 cutz (list, optional): list containing the minimum cutsize and the maximum cutsize for z coordinates
 						
 		Returns:
-		plot (matplotlib.pyplot): Plot of Covariance map in three dimensional scale 
+		 Covariance (np.array): Covariance map 
+		 plot (matplotlib.pyplot): Plot of Covariance map in three dimensional scale 
 		'''
+
+
+
 		X = self.dataset[self.x_label].values
 		Y = self.dataset[self.y_label].values
 		Z = self.dataset[self.z_label].values
@@ -604,38 +606,46 @@ class funcs_3D:
 		cordinates = np.array([np.array([i,j,k]).T for i in cordinatesx for j in cordinatesy for k in cordinatesz])
 		estimates = np.zeros(len(cordinates))
 
-		nb = KNeighborsRegressor(n_neighbors=neighbors).fit(np.array([X,Y,Z]).T, R)
+		nb = KNeighborsRegressor().fit(np.array([X,Y,Z]).T, R)
 
 		for i, j in zip(range(len(estimates)), cordinates): 
 			estimates[i] = nb.predict(j.reshape(1, -1))[0]
 			
 		estimates = estimates.reshape((division,division,division))
 		
-		fft_u  = np.conjugate(np.fft.fftn(estimates,axes=(0,1,2), norm ='ortho'))
-		fft_u_roll = np.fft.fftn(estimates,axes=(0,1,2), norm ='ortho')
+		fft_u  = np.conjugate(np.fft.fftn(estimates))
+		fft_u_roll = np.fft.fftn(estimates)
 		product = np.multiply(fft_u_roll,fft_u)
-		Covariance = np.fft.fftshift(np.fft.ifftn(product,axes=(0,1,2), norm ='ortho'))
-		Covariance = np.real(Covariance)	
-		Covariance = Covariance.reshape(-1,1)[:,0]/(division*division*division)
+		Covariance = np.fft.fftshift(np.fft.ifftn(product))
+		Covariance = np.real(Covariance)
 
-		filter_cord = (cordinates[:,0]>cutx[0]) & (cordinates[:,0]<cutx[1]) &  (cordinates[:,1]>cuty[0]) & (cordinates[:,1]<cuty[1]) &  (cordinates[:,2]>cutz[0]) & (cordinates[:,2]<cutz[1])
+		if plot == True:
+			Covariance = Covariance.reshape(-1,1)[:,0]
+			
+			filter_cord = (cordinates[:,0]>cutx[0]) & (cordinates[:,0]<cutx[1]) &  (cordinates[:,1]>cuty[0]) & (cordinates[:,1]<cuty[1]) &  (cordinates[:,2]>cutz[0]) & (cordinates[:,2]<cutz[1])
 
-		cx = cordinates[:,0][filter_cord]
-		cy = cordinates[:,1][filter_cord]
-		cz = cordinates[:,2][filter_cord]
-
-		Covariance = Covariance[filter_cord]
-		fig = plt.figure()
-		ax = fig.gca(projection='3d')
-		ax.set_xlabel("x")
-		ax.set_ylabel("y")
-		ax.set_zlabel("z")
-		scat = ax.scatter(cx, cy, cz,  cmap='Spectral', s= size, marker="D", c=Covariance, alpha=alpha)
-		fig.colorbar(scat)
-		plt.show()
+			cx = cordinates[:,0][filter_cord]
+			cy = cordinates[:,1][filter_cord]
+			cz = cordinates[:,2][filter_cord]
+			Covariance = Covariance[filter_cord]
 
 
+			fig = plt.figure()
+			ax = fig.gca(projection='3d')
+			ax.set_xlabel("x")
+			ax.set_ylabel("y")
+			ax.set_zlabel("z")
+			scat = ax.scatter(cx, cy, cz,  cmap='viridis', s= 40, marker="D", c=Covariance, alpha=alpha)
+			cbar = fig.colorbar(scat)
+			plt.show()
+		
+		return Covariance
 
+			
+
+
+
+				
 
 
 
