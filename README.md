@@ -52,43 +52,70 @@ The 3D experimental functions are related to funcs\_3D object. To create experim
 
 The following methods are used to calculate spatial continuity functions:
 
-## funcs\_3D.distances\(\)
+
 
 ```text
+   """"funcs_3D
+   Instances: 
+   dataset (pandas.Dataframe): Input Dataframe containing the dataset 
+   x_label (string): Label of x coordinates contained in dataset 
+   y_label (string): Label of y coordinates contained in dataset 
+   z_label (string): Label of z coordinates contained in dataset 
+   head_property  (string): label of head property contained in dataset 
+   tail property (string): label of tail property contained in dataset  
+   lagdistance (double): lag size of experimental spatial functions
+   lineartolerance (double): lag linear tolerance of experimental spatial functions 
+   htolerance (double): angular horizontal tolerance of experimental spatial functions in degrees   
+   vtolerance  (double): angular vertical tolerance of experimental spatial functions in degrees 
+   hband (double): horizontal bandwidth of spatial functions  
+   vband  (double): vertical bandwidth of spatial functions  
+   azimuth  (double): Azimuth value for experimental continuity function in degrees 
+   dip (double): Dip value for experimental continuity functions in degrees 
 
-Returns a pandas dataframe with the distances of each pair of 
-samples containing in dataset
+   Methods:
+   distances(self) : Calculate the matrix distance of all pairs 
+   permissible_pairs_omni (self, lag_multiply) : Calculate the permissible sample pairs for omnidirecional functions for irregular grids 
+   permissible_pairs(self , lag_multiply) : Calculate the permissible sample pairs for directional functions for irregular grids
+   hscatter(self, lag_multiply) : Calculate the hscatterplot for a distance multiple of a lag
+   calculate_experimental(self , lag_multiply,  type_var) : Calculate the experimental continuity function value for a distance multiple of a lag and a type of variogram 
+   calculate_experimental_omini(self , lag_multiply,  type_var) : Calculate the experimental omnidirecional continuity function value for a distance multiple of a lag and a type of variogram
+   calculate_experimental_function(self, type_var) : Calculate the experimental continuity function for all lag values 
+   calculate_experimental_function_omni(self, type_var) : Calculate the omnidirecional experimental continuity function for all lag values
 
->> Output 
->> ............................................................................. 
-DX  = diference of x cartesian values from the head and tails of the vector 
-DY  = diference of y cartesian values from the head and tails of the vector  
-DZ  = diference of z cartesian values from the head and tails of the vector 
-XY  = Distance projection on XY plane of the vector  
-H   = Distance value from head and tail of vector  
-Var 1 (head) = Value from variable 1 on the head of vector 
-Var 2 (head) = Value from variable 2 on the head of vector  
-Var 1 (tail) = Value from variable 1 on the tail of vector 
-Var 2 (tail) = Value form variable 2 on the tail of vector 
-INDEX HEAD   = Index of propertie 1 sample 
-INDEX TAIL   = Index of propertie 2 sample
-
+   """
 ```
 
+## funcs\_3D.distances\(\)
 
+Returns the 3Dimensional distances between all samples 
+
+```text
+		'''distances
+		Returns:	
+		 distance_dataframe (pandas.DataFrame): Pandas Dataframe containing all the distance metrics
+		 DX (pandas.DataFrame.Series) : Difference of x cartesian coordinates 
+		 DY (pandas.DataFrame.Series) : = diference of y cartesian values from the head and tails of the vector  
+		 DZ (pandas.DataFrame.Series) : = diference of z cartesian values from the head and tails of the vector 
+		 XY (pandas.DataFrame.Series) : = Distance projection on XY plane of the vector  
+		 H  (pandas.DataFrame.Series) : = Distance value from head and tail of vector  
+		 Var 1 (head) (pandas.DataFrame.Series) : Value from variable 1 on the head of vector 
+		 Var 2 (head) (pandas.DataFrame.Series) : Value from variable 2 on the head of vector  
+		 Var 1 (tail) (pandas.DataFrame.Series) : Value from variable 1 on the tail of vector 
+		 Var 2 (tail) (pandas.DataFrame.Series) : Value form variable 2 on the tail of vector 
+		 INDEX HEAD   (pandas.DataFrame.Series) : Index of propertie 1 sample 
+		 INDEX TAIL   (pandas.DataFrame.Series) : Index of propertie 2 sample
+		'''
+```
 
 ## funcs\_3D.permissible\_pairs\_omni \(lag\_multiply\)
 
 ```text
-    '''
-    Returns the set of permissible pairs for a lag multiplication of lag_multiply
-    for a omnidirecional search strategy
-
-
-    >> Input 
-    >>............................................................................
-    >> lag_multiply = integer containing theh multiple of lag distance 
-    '''
+		'''permissible_pairs_omni
+		Args:
+		 lag_multiply (double): Mutliple of lag distance
+		Returns:	
+		 distances (pandas.DataFrame): Returns the permissible sample pairs for omnidirecional functions
+		'''
 ```
 
 
