@@ -10,10 +10,16 @@ from scipy import signal
 from sklearn.neighbors import KNeighborsRegressor
 from mpl_toolkits.mplot3d import Axes3D
 import math 
+import numba
+import scipy
+import multiprocessing
 
 plt.style.use('seaborn-muted')
+import warnings
+
 
 import pathlib
+import time
  
 script_dir = pathlib.Path(__file__).parent.resolve()
 
@@ -69,7 +75,59 @@ class funcs_3D:
 		self.vband = float(vband) 
 		self.azimuth = float(azimuth)
 		self.dip = float(dip) 
-		self.dist = pd.DataFrame()
+		self.__dist = []
+		self.__type_var = "Variogram"
+		self.__omni = False
+		self.__htol = 0
+		self.__vtol=0
+		self.__check_azimuth = 0
+		self.__check_dip     = 0
+		self.__check_bandh   = 0
+		self.__check_bandv	  = 0
+		self.choice	  = 12000
+        
+	@numba.jit
+	def hdist(self , distancex, distancey, distancez):
+		dist =np.zeros(distancex.shape[0])
+		for i in range(distancex.shape[0]):
+			dist[i] = np.sqrt(distancex[i]**2 + distancey[i]**2 + distancez[i]**2) + 0.0000000001
+		return dist
+
+	@numba.jit
+	def xdist(self , pairs):
+		dist =np.zeros(pairs.shape[0])
+		for i in range(pairs.shape[0]):
+			dist[i] = (pairs[i][0][0] - pairs[i][1][0])
+		return dist
+
+
+	@numba.jit
+	def ydist(self , pairs):
+		dist =np.zeros(pairs.shape[0])
+		for i in range(pairs.shape[0]):
+			dist[i] = (pairs[i][0][1] - pairs[i][1][1])
+		return dist
+
+
+	@numba.jit
+	def zdist(self , pairs):
+		dist =np.zeros(pairs.shape[0])
+		for i in range(pairs.shape[0]):
+			dist[i] = (pairs[i][0][2] - pairs[i][1][2])
+		return dist
+
+	@numba.jit
+	def combin(self , points,n, max_dist):
+		dist =[]
+		p = 0
+		for i in range(0,n):
+			for j in range((i+1),n):
+				if (points[i][0] - points[j][0]) < max_dist:
+					if (points[i][1] - points[j][1]) < max_dist:
+						if (points[i][2] - points[j][2]) < max_dist:
+							dist.append((points[i] , points[j]))
+				p += 1
+		return np.array(dist)
 
 	def distances(self):
 
@@ -89,46 +147,52 @@ class funcs_3D:
 		 INDEX TAIL   (pandas.DataFrame.Series) : Index of propertie 2 sample
 		'''
 
-		X = self.dataset[self.x_label]
-		Y = self.dataset[self.y_label]
-		Z = self.dataset[self.z_label]
-		HEAD = self.dataset[self.head_property]
-		TAIL = self.dataset[self.tail_property]
-		points = zip(X,Y,Z,HEAD,TAIL,HEAD.index, TAIL.index)
-
-		pairs = list(it.combinations(points, 2))
+		max_dist = (self.nlags + 1)*self.lagdistance
+		X = self.dataset[self.x_label].values
+		Y = self.dataset[self.y_label].values
+		Z = self.dataset[self.z_label].values
+		HEAD = self.dataset[self.head_property].values
+		TAIL = self.dataset[self.tail_property].values
+		if (X.shape[0] > 20000):
+			warnings.warn("Warning .... dataset is too big > 20000! Applying random method \
+                          USING 12000 SAMPLE DATA")
+			choice = int(self.choice)
+			X = np.random.choice(X, choice)
+			Y = np.random.choice(Y, choice)
+			Z = np.random.choice(Z, choice)
+			HEAD = np.random.choice(HEAD, choice)
+			TAIL = np.random.choice(TAIL, choice)
+		points = np.array(list(zip(X,Y,Z,HEAD,TAIL)))
+		pairs = self.combin(points,points.shape[0], max_dist)
+#		pairs =np.array(list(it.combinations(points,2)))
 		distanceh  =[]
 		distancexy = []
-
-	
-		distancex = np.array([(pair[0][0] - pair[1][0]) for pair in pairs])
-		distancey = np.array([(pair[0][1] - pair[1][1]) for pair in pairs])
-		distancez = np.array([(pair[0][2] - pair[1][2]) for pair in pairs])
-		distancexy =np.array([np.sqrt(distancex[i]**2 + distancey[i]**2) for i in range(len(distancex))]) + 0.000001
-		distanceh =np.array([np.sqrt(distancex[i]**2 + distancey[i]**2 + distancez[i]**2) for i in range(len(distancex))])+ 0.000001
+		distancex = self.xdist(pairs) 
+		distancey =  self.ydist(pairs) 
+		distancez =  self.zdist(pairs)
+		distanceh = self.hdist( distancex, distancey, distancez)
+		cos = np.cos(np.radians(self.dip))
+		distancexy = np.abs(distanceh*cos)
 		head_1 = np.array([pair[0][3] for pair in pairs])
 		head_2 = np.array([pair[0][4] for pair in pairs])
 		tail_1 = np.array([pair[1][3] for pair in pairs])
 		tail_2 = np.array([pair[1][4] for pair in pairs])
-		index_h = np.array([pair[0][5] for pair in pairs])
-		index_t = np.array([pair[0][6] for pair in pairs])
-
-		distance_dataframe  =pd.DataFrame(np.array([distancex, 
-						  distancey, 
-						  distancez, 
-						  distancexy, 
-						  distanceh, 
-						  head_1,
-						  head_2,
-						  tail_1,
-						  tail_2,
-						  index_h,
-						  index_t]).T, 
-						  columns=['DX', 'DY', 'DZ', 'XY', 'H', 'Var 1 (head)', 'Var 2 (head)', 'Var 1 (tail)', 'Var 2 (tail)', 'INDEX HEAD', 'INDEX TAIL'])
-		return distance_dataframe
 
 
-	def permissible_pairs(self , lag_multiply):
+
+		distance_dataframe =  np.array([distancex, 
+						distancey, 
+						distancez, 
+						distancexy, 
+						distanceh, 
+						head_1,
+						head_2,
+						tail_1,
+						tail_2,]).T
+ 		
+		return distance_dataframe[distanceh[:,] < max_dist ]
+
+	def __permissible_pairs (self , lag_multiply):
 
 		'''permissible_pairs
 		Args:
@@ -137,37 +201,26 @@ class funcs_3D:
 		 distances (pandas.DataFrame): Returns the permissible sample pairs for omnidirecional functions
 		'''
 
-		cos_Azimuth = np.cos(np.radians(90-self.azimuth))
-		sin_Azimuth = np.sin(np.radians(90-self.azimuth))
-		cos_Dip     = np.cos(np.radians(90-self.dip))
-		sin_Dip     = np.sin(np.radians(90-self.dip))
-
 		minimum_range = lag_multiply*self.lagdistance - self.lineartolerance
 		maximum_range = lag_multiply*self.lagdistance + self.lineartolerance
 
-		htol = np.abs(np.cos(np.radians(self.htolerance)))
-		vtol=np.abs(np.cos(np.radians(self.vtolerance)))
-
-		
-		check_azimuth = np.abs((self.dist['DX']*cos_Azimuth + self.dist['DY']*sin_Azimuth)/self.dist['XY'])
-		check_dip     = np.abs((self.dist['XY']*sin_Dip + self.dist['DZ']*cos_Dip)/self.dist['H'])
-		check_bandh   = np.abs(cos_Azimuth*self.dist['DY']- sin_Azimuth*self.dist['DX'])
-		check_bandv	  = np.abs(sin_Dip*self.dist['DZ'] - cos_Dip*self.dist['XY'])
+		if self.omni == False:
 
 	
-		filter_dist = self.dist[(self.dist['H'] >= minimum_range) & 
-							  (self.dist['H'] <= maximum_range) & 
-							  (check_azimuth.values >= htol) &
-							  (check_dip.values >= vtol) &
-							  (check_bandh.values < self.hband)&
-							  (check_bandv.values < self.vband)]
-
-		filter_dist = filter_dist.dropna()
+			filter_dist = self.dist[(self.dist[:,4] >= minimum_range) & 
+							  (self.dist[:,4] <= maximum_range) & 
+							  (self.check_azimuth >= self.htol) &
+							  (self.check_dip >= self.vtol) &
+							  (self.check_bandh < self.hband)&
+							  (self.check_bandv < self.vband)]
+		else:
+			filter_dist = self.dist[(self.dist[:,4] >= minimum_range) & 
+							  (self.dist[:,4] <= maximum_range)]
 
 		return filter_dist
 
 
-	def calculate_experimental(self , lag_multiply,  type_var):
+	def __calculate_experimental(self , lag_multiply):
 
 		'''calculate_experimental
 		Args:
@@ -185,38 +238,38 @@ class funcs_3D:
 		 average_distace (double): average distance of experimental continuity function value  
 		'''
 
-		points = self.permissible_pairs(lag_multiply)
+		points = self.__permissible_pairs(lag_multiply)
 		
-		if type_var not in['Variogram','Covariogram','Correlogram','Pair_Wise','Relative_Variogram']:
+		if self.type_var not in['Variogram','Covariogram','Correlogram','PairWise','Relative_Variogram']:
 			raise Exception("Experimental continuity function not in admissible functions")
 
-		if points.empty == False:
+		if points.size  != 0:
 			number_of_pairs = points.shape[0]
-			average_distance = points['H'].mean()
-			value = 0
-			if type_var == 'Variogram': 
-				value = ((points['Var 1 (head)'] - points['Var 1 (tail)'])*(points['Var 2 (head)'] - points['Var 2 (tail)']))/(2*number_of_pairs)
-				value = value.sum()
-			if type_var == 'Covariogram': 
-				value = ((points['Var 1 (head)'] - points['Var 1 (head)'].mean())*(points['Var 2 (tail)']-points['Var 2 (tail)'].mean()))/number_of_pairs
-				value = value.sum()
-			if type_var == 'Correlogram':
-				value = ((points['Var 1 (head)'] - points['Var 1 (head)'].mean())*(points['Var 2 (tail)']-points['Var 2 (tail)'].mean()))/(number_of_pairs*points['Var 1 (head)'].var()*points['Var 2 (tail)'].var())
-				value = value.sum()
-			if type_var == 'Pair_Wise':
-				value = 2*((points['Var 1 (head)'] - points['Var 1 (tail)'])/(points['Var 2 (head)'] + points['Var 2 (tail)']))**2/number_of_pairs
-				value = value.sum()
-			if type_var == 'Relative_Variogram':
-				average_tail = (points['Var 1 (tail)'] +  points['Var 2 (tail)'])/2
-				average_head = (points['Var 1 (head)'] +  points['Var 2 (head)'])/2
-				value = 4*((points['Var 1 (head)'] - points['Var 1 (tail)'])*(points['Var 2 (head)'] - points['Var 2 (tail)']))/(number_of_pairs*(average_head + average_tail)**2)
-				value = value.sum()
-			return value, number_of_pairs, average_distance
-		return None , None, None
+			average_distance = points[:,4].mean()
+			value_exp = 0
+			if self.type_var == 'Variogram': 
+				value_exp = ((points[:,5] - points[:,7])*(points[:,6] - points[:,8]))/(2*number_of_pairs)
+				value_exp = value_exp.sum()
+			if self.type_var == 'Covariogram': 
+				value_exp = ((points[:,5] - points[:,5].mean())*(points[:,8]-points[:,8].mean()))/number_of_pairs
+				value_exp = value_exp.sum()
+			if self.type_var == 'Correlogram':
+				value_exp = ((points[:,5] - points[:,5].mean())*(points[:,8]-points[:,8].mean()))/(number_of_pairs*points[:,5].var()*points[:,8].var())
+				value_exp = value_exp.sum()
+			if self.type_var == 'PairWise':
+				value_exp = 2*((points[:,5] - points[:,7])/(points[:,6] + points[:,8]))**2/number_of_pairs
+				value_exp = value_exp.sum()
+			if self.type_var == 'Relative_Variogram':
+				average_tail = (points[:,7] +  points[:,8])/2
+				average_head = (points[:,5] +  points[:,6])/2
+				value_exp = 4*((points[:,5] - points[:,7])*(points[:,6] - points[:,8]))/(number_of_pairs*(average_head + average_tail)**2)
+				value_exp = value_exp.sum()
+			return [value_exp, number_of_pairs, average_distance]
+		return [np.nan , np.nan, np.nan]
 
 
 
-	def calculate_experimental_function(self, type_var, plot=True, show_pairs=True):
+	def calculate_experimental_function(self, type_c, omni = False, plot_graph=False, show_pairs=False):
 
 		'''calculate_experimental_function
 		Args:	
@@ -232,30 +285,33 @@ class funcs_3D:
 		'''
 
 		self.dist = self.distances()
-		values =[]
-		number_of_pairs = []
-		average_distance = []
-		p = 0
-		for i in range(0,self.nlags):
-			value, pair, distance = self.calculate_experimental(i, type_var)
-			if value != None:
-				values.append(value)
-				number_of_pairs.append(pair)
-				average_distance.append(distance)
-			p += 1
-			
+		self.type_var = type_c
+		self.omni = omni
+		cos_Azimuth = np.cos(np.radians(90-self.azimuth))
+		sin_Azimuth = np.sin(np.radians(90-self.azimuth))
+		cos_Dip     = np.cos(np.radians(90-self.dip))
+		sin_Dip     = np.sin(np.radians(90-self.dip))
+		self.htol = np.abs(np.cos(np.radians(self.htolerance)))
+		self.vtol= np.abs(np.cos(np.radians(self.vtolerance)))
+		self.check_azimuth = np.abs((self.dist[:,0]*cos_Azimuth + self.dist[:,1]*sin_Azimuth)/self.dist[:,3])
+		self.check_dip     = np.abs((self.dist[:,3]*sin_Dip + self.dist[:,2]*cos_Dip)/self.dist[:,4])
+		self.check_bandh   = np.abs(cos_Azimuth*self.dist[:,1]- sin_Azimuth*self.dist[:,0])
+		self.check_bandv	  = np.abs(sin_Dip*self.dist[:,2] - cos_Dip*self.dist[:,3])
 
-		df = pd.DataFrame(np.array([values,number_of_pairs,average_distance]).T, 
+		number_of_int = range(1, (self.nlags +1))
+		value_exp = np.array(list(map(self.__calculate_experimental, number_of_int)))
+
+
+		df = pd.DataFrame(value_exp, 
 						  columns = ['Spatial continuity', 'Number of pairs', 'Average distance'])
-		
-		if plot == True:
+		df = df.dropna()
+		if plot_graph == True:
 			fig = plt.figure()
 			ax = fig.add_subplot(111)
-
 			ax.plot(df['Average distance'].values, df['Spatial continuity'].values)
 			ax.set_xlabel('Lag distance (h)')
-			ax.set_ylabel(type_var)
-			ax.set_title('Experimental continuity function : {} , azimuth {}  and dip {} '.format(str(type_var), str(self.azimuth), str(self.dip)))
+			ax.set_ylabel(type_c)
+			ax.set_title('Experimental continuity function : {} , azimuth {}  and dip {} '.format(str(type_c), str(self.azimuth), str(self.dip)))
 			if show_pairs == True:
 				x, y = df['Average distance'].values, df['Spatial continuity'].values
 				for i, j  in enumerate(df['Number of pairs'].values):
@@ -265,6 +321,7 @@ class funcs_3D:
 			plt.show()
 
 		return df 
+
 
 
 	def modelling(self, experimental_dataframe, rotation_reference, model_func, ranges, contribution, nugget, inverted= False, plot_graph = True ):
@@ -287,6 +344,13 @@ class funcs_3D:
 		Returns:
 		 plot (matplotlib.pyplot): Plot of omnidirecional experimental continuity function and the spatial continuity model for one direction 
 		'''
+
+		if len(ranges[0]) != 3:
+			raise ValueError("Variogram ranges must range 3 principal directions")
+		if len(ranges) == len(contribution) and len(ranges) == len(model_func):
+			pass
+		else:
+			raise ValueError("Variogram structures must be the same size")
 
 
 		y = math.cos(math.radians(self.dip))*math.sin(math.radians(self.azimuth))
@@ -439,36 +503,6 @@ class funcs_3D:
 		plt.show()
 
 
-
-data = np.loadtxt("Ferro 3d.dat", skiprows= 1, unpack=False)
-df = pd.DataFrame(data, columns=['X','Y','Z','fe'])
-
-
-
-nlags = 10
-lagdistance= 80
-lineartolerance = 40
-htolerance = 45.0
-vtolerance = 45.0
-hband = 40
-vband = 40 
-vband = 40
-azimuth = 157.0
-dip = 20.0
-
-gamma = funcs_3D(df,'X','Y','Z','fe','fe',nlags,lagdistance,
-                         lineartolerance, htolerance, vtolerance, 
-                         hband, vband, azimuth,dip)
-
-
-
-# Calculate variogram values 
-variogram = gamma.calculate_experimental_function("Variogram")
-print(variogram)
-
-
-
-		
 
 
 		
