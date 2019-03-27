@@ -44,7 +44,6 @@ class funcs_3D:
 	   vband  (double): vertical bandwidth of spatial functions  
 	   azimuth  (double): Azimuth value for experimental continuity function in degrees 
 	   dip (double): Dip value for experimental continuity functions in degrees 
-
 	   Methods:
 	       distances(self) : Calculate the matrix distance of all pairs 
 	       permissible_pairs_omni (self, lag_multiply) : Calculate the permissible sample pairs for omnidirecional functions for irregular grids 
@@ -70,6 +69,7 @@ class funcs_3D:
 		self.vband = float(vband) 
 		self.azimuth = float(azimuth)
 		self.dip = float(dip) 
+		self.dist = pd.DataFrame()
 
 	def distances(self):
 
@@ -101,17 +101,17 @@ class funcs_3D:
 		distancexy = []
 
 	
-		distancex = [(pair[0][0] - pair[1][0]) for pair in pairs]
-		distancey = [(pair[0][1] - pair[1][1]) for pair in pairs]
-		distancez = [(pair[0][2] - pair[1][2]) for pair in pairs]
-		distancexy =[np.sqrt(distancex[i]**2 + distancey[i]**2) for i in range(len(distancex))]
-		distanceh =[np.sqrt(distancex[i]**2 + distancey[i]**2 + distancez[i]**2) for i in range(len(distancex))]
-		head_1 = [pair[0][3] for pair in pairs]
-		head_2 = [pair[0][4] for pair in pairs]
-		tail_1 = [pair[1][3] for pair in pairs]
-		tail_2 = [pair[1][4] for pair in pairs]
-		index_h = [pair[0][5] for pair in pairs]
-		index_t = [pair[0][6] for pair in pairs]
+		distancex = np.array([(pair[0][0] - pair[1][0]) for pair in pairs])
+		distancey = np.array([(pair[0][1] - pair[1][1]) for pair in pairs])
+		distancez = np.array([(pair[0][2] - pair[1][2]) for pair in pairs])
+		distancexy =np.array([np.sqrt(distancex[i]**2 + distancey[i]**2) for i in range(len(distancex))]) + 0.000001
+		distanceh =np.array([np.sqrt(distancex[i]**2 + distancey[i]**2 + distancez[i]**2) for i in range(len(distancex))])+ 0.000001
+		head_1 = np.array([pair[0][3] for pair in pairs])
+		head_2 = np.array([pair[0][4] for pair in pairs])
+		tail_1 = np.array([pair[1][3] for pair in pairs])
+		tail_2 = np.array([pair[1][4] for pair in pairs])
+		index_h = np.array([pair[0][5] for pair in pairs])
+		index_t = np.array([pair[0][6] for pair in pairs])
 
 		distance_dataframe  =pd.DataFrame(np.array([distancex, 
 						  distancey, 
@@ -127,29 +127,6 @@ class funcs_3D:
 						  columns=['DX', 'DY', 'DZ', 'XY', 'H', 'Var 1 (head)', 'Var 2 (head)', 'Var 1 (tail)', 'Var 2 (tail)', 'INDEX HEAD', 'INDEX TAIL'])
 		return distance_dataframe
 
-	def permissible_pairs_omni (self, lag_multiply):
-
-		'''permissible_pairs_omni
-		Args:
-		 lag_multiply (double): Mutliple of lag distance
-		Returns:	
-		 distances (pandas.DataFrame): Returns the permissible sample pairs for omnidirecional functions
-		'''
-
-		distances = self.distances()
-		minimum_range = lag_multiply*self.lagdistance - self.lineartolerance
-		maximum_range = lag_multiply*self.lagdistance + self.lineartolerance
-
-	
-		distances = distances[(distances['H'] >= minimum_range) & 
-							  (distances['H'] <= maximum_range)]
-
-		distances = distances.dropna()
-
-		return distances
-
-
-
 
 	def permissible_pairs(self , lag_multiply):
 
@@ -160,7 +137,6 @@ class funcs_3D:
 		 distances (pandas.DataFrame): Returns the permissible sample pairs for omnidirecional functions
 		'''
 
-		distances = self.distances()
 		cos_Azimuth = np.cos(np.radians(90-self.azimuth))
 		sin_Azimuth = np.sin(np.radians(90-self.azimuth))
 		cos_Dip     = np.cos(np.radians(90-self.dip))
@@ -173,61 +149,23 @@ class funcs_3D:
 		vtol=np.abs(np.cos(np.radians(self.vtolerance)))
 
 		
-		check_azimuth = np.abs((distances['DX']*cos_Azimuth + distances['DY']*sin_Azimuth)/distances['XY'])
-		check_dip     = np.abs((distances['XY']*sin_Dip + distances['DZ']*cos_Dip)/distances['H'])
-		check_bandh   = np.abs(cos_Azimuth*distances['DY']- sin_Azimuth*distances['DX'])
-		check_bandv	  = np.abs(sin_Dip*distances['DZ'] - cos_Dip*distances['XY'])
+		check_azimuth = np.abs((self.dist['DX']*cos_Azimuth + self.dist['DY']*sin_Azimuth)/self.dist['XY'])
+		check_dip     = np.abs((self.dist['XY']*sin_Dip + self.dist['DZ']*cos_Dip)/self.dist['H'])
+		check_bandh   = np.abs(cos_Azimuth*self.dist['DY']- sin_Azimuth*self.dist['DX'])
+		check_bandv	  = np.abs(sin_Dip*self.dist['DZ'] - cos_Dip*self.dist['XY'])
 
 	
-		distances = distances[(distances['H'] >= minimum_range) & 
-							  (distances['H'] <= maximum_range) & 
+		filter_dist = self.dist[(self.dist['H'] >= minimum_range) & 
+							  (self.dist['H'] <= maximum_range) & 
 							  (check_azimuth.values >= htol) &
 							  (check_dip.values >= vtol) &
 							  (check_bandh.values < self.hband)&
 							  (check_bandv.values < self.vband)]
 
-		distances = distances.dropna()
+		filter_dist = filter_dist.dropna()
 
-		return distances
+		return filter_dist
 
-	def hscatter(self, lag_multiply):
-
-		'''hscatter
-		Args:
-		 lag_multiply (double): Mutliple of lag distance
-		Returns:	
-		 distances (pandas.DataFrame): Returns the permissible sample pairs for omnidirecional functions
-		'''
-
-
-		df = self.permissible_pairs(lag_multiply)
-		figure, ax = plt.subplots(nrows= 2, ncols= 2, figsize=(10,10))
-
-
-		correlations = df[['Var 1 (head)','Var 2 (head)','Var 1 (tail)','Var 2 (tail)']].corr().values
-
-
-		print (ax)
-		ax[0][0].scatter(df['Var 1 (head)'].values, df['Var 2 (head)'].values )
-		ax[0][0].set_xlabel('Var 1 (head)')
-		ax[0][0].set_ylabel('Var 2 (head)')
-		ax[0][0].set_title('Correlation :  {}'.format(str(correlations[0][1])))
-
-		ax[0][1].scatter(df['Var 1 (head)'], df['Var 2 (tail)'] )
-		ax[0][1].set_xlabel('Var 1 (head)')
-		ax[0][1].set_ylabel('Var 2 (tail)')
-		ax[0][1].set_title('Correlation :  {}'.format(str(correlations[0][3])))
-
-		ax[1][0].scatter(df['Var 1 (tail)'], df['Var 2 (head)'] )
-		ax[1][0].set_xlabel('Var 1 (tail)')
-		ax[1][0].set_ylabel('Var 2 (head)')
-		ax[1][0].set_title('Correlation :  {}'.format(str(correlations[2][1])))
-
-		ax[1][1].scatter(df['Var 1 (tail)'], df['Var 2 (tail)'] )
-		ax[1][1].set_xlabel('Var 1 (tail)')
-		ax[1][1].set_ylabel('Var 2 (tail)')
-		ax[1][1].set_title('Correlation :  {}'.format(str(correlations[2][3])))
-		plt.show()
 
 	def calculate_experimental(self , lag_multiply,  type_var):
 
@@ -236,7 +174,6 @@ class funcs_3D:
 		 lag_multiply (double): Mutliple of lag distance	
 		 type_var (string): String containing the type of spatial continuity function to calculate
 		 					5 admissible functions are possible:
-
 							"Variogram"
 			 				"Covariogram"
 			 				"Correlogram"
@@ -246,9 +183,7 @@ class funcs_3D:
 		 value (double): Experimental continuity function value 
 		 number_of_pairs (int) : number of pairs used to calculate the experimental function 
 		 average_distace (double): average distance of experimental continuity function value  
-
 		'''
-
 
 		points = self.permissible_pairs(lag_multiply)
 		
@@ -280,61 +215,13 @@ class funcs_3D:
 		return None , None, None
 
 
-	def calculate_experimental_omini(self , lag_multiply,  type_var):
 
-		'''calculate_experimental_omini
-		Args:
-		 lag_multiply (double): Mutliple of lag distance	
-		 type_var (string): String containing the type of spatial continuity function to calculate
-		 					5 admissible functions are possible:
-
-							"Variogram"
-			 				"Covariogram"
-			 				"Correlogram"
-			 				"PairWise"
-			 				"RelativeVariogram" 
-		Returns:
-		 value (double): Experimental continuity function value 
-		 number_of_pairs (int) : number of pairs used to calculate the experimental function 
-		 average_distace (double): average distance of omnidirecional experimental continuity function value 
-		'''
-
-		points = self.permissible_pairs_omni(lag_multiply)
-		
-		if type_var not in['Variogram','Covariogram','Correlogram','Pair_Wise','Relative_Variogram']:
-			raise Exception("Experimental continuity function not in admissible functions")
-
-		if points.empty == False:
-			number_of_pairs = points.shape[0]
-			average_distance = points['H'].mean()
-			value = 0
-			if type_var == 'Variogram': 
-				value = ((points['Var 1 (head)'] - points['Var 1 (tail)'])*(points['Var 2 (head)'] - points['Var 2 (tail)']))/(2*number_of_pairs)
-				value = value.sum()
-			if type_var == 'Covariogram': 
-				value = ((points['Var 1 (head)'] - points['Var 1 (head)'].mean())*(points['Var 2 (tail)']-points['Var 2 (tail)'].mean()))/number_of_pairs
-				value = value.sum()
-			if type_var == 'Correlogram':
-				value = ((points['Var 1 (head)'] - points['Var 1 (head)'].mean())*(points['Var 2 (tail)']-points['Var 2 (tail)'].mean()))/(number_of_pairs*points['Var 1 (head)'].var()*points['Var 2 (tail)'].var())
-				value = value.sum()
-			if type_var == 'PairWise':
-				value = 2*((points['Var 1 (head)'] - points['Var 1 (tail)'])/(points['Var 2 (head)'] + points['Var 2 (tail)']))**2/number_of_pairs
-				value = value.sum()
-			if type_var == 'RelativeVariogram':
-				average_tail = (points['Var 1 (tail)'] +  points['Var 2 (tail)'])/2
-				average_head = (points['Var 1 (head)'] +  points['Var 2 (head)'])/2
-				value = 4*((points['Var 1 (head)'] - points['Var 1 (tail)'])*(points['Var 2 (head)'] - points['Var 2 (tail)']))/(number_of_pairs*(average_head + average_tail)**2)
-				value = value.sum()
-			return value, number_of_pairs, average_distance
-		return None , None, None
-
-	def calculate_experimental_function(self, type_var):
+	def calculate_experimental_function(self, type_var, plot=True, show_pairs=True):
 
 		'''calculate_experimental_function
 		Args:	
 		 type_var (string): String containing the type of spatial continuity function to calculate
 		 					5 admissible functions are possible:
-
 							"Variogram"
 			 				"Covariogram"
 			 				"Correlogram"
@@ -344,7 +231,7 @@ class funcs_3D:
 		 df (pandas.DataFrame): Pandas Dataframe containing the experimental continuity functions of all lags
 		'''
 
-
+		self.dist = self.distances()
 		values =[]
 		number_of_pairs = []
 		average_distance = []
@@ -360,108 +247,25 @@ class funcs_3D:
 
 		df = pd.DataFrame(np.array([values,number_of_pairs,average_distance]).T, 
 						  columns = ['Spatial continuity', 'Number of pairs', 'Average distance'])
+		
+		if plot == True:
+			fig = plt.figure()
+			ax = fig.add_subplot(111)
+
+			ax.plot(df['Average distance'].values, df['Spatial continuity'].values)
+			ax.set_xlabel('Lag distance (h)')
+			ax.set_ylabel(type_var)
+			ax.set_title('Experimental continuity function : {} , azimuth {}  and dip {} '.format(str(type_var), str(self.azimuth), str(self.dip)))
+			if show_pairs == True:
+				x, y = df['Average distance'].values, df['Spatial continuity'].values
+				for i, j  in enumerate(df['Number of pairs'].values):
+					ax.annotate(str(j), xy =(x[i], y[i]), xytext =(x[i], (y[i]+0.05*y[i])))
+				ax.set_ylim((min(y),1.10*max(y)))
+			plt.grid()
+			plt.show()
+
 		return df 
 
-	def calculate_experimental_function_omni(self, type_var):
-
-		'''calculate_experimental_function_omni
-		Args:	
-		 type_var (string): String containing the type of spatial continuity function to calculate
-		 					5 admissible functions are possible:
-
-							"Variogram"
-			 				"Covariogram"
-			 				"Correlogram"
-			 				"PairWise"
-			 				"RelativeVariogram" 
-		Returns:
-		 df (pandas.DataFrame): Pandas Dataframe containing the omnidirecional experimental continuity functions of all lags
-		'''
-
-
-		values =[]
-		number_of_pairs = []
-		average_distance = []
-		p = 0
-		for i in tqdm(range(0,self.nlags), desc ="Calculating lag : "):
-			value, pair, distance = self.calculate_experimental_omini(i, type_var)
-			if value != None:
-				values.append(value)
-				number_of_pairs.append(pair)
-				average_distance.append(distance)
-			p += 1
-			
-
-		df = pd.DataFrame(np.array([values,number_of_pairs,average_distance]).T, 
-						  columns = ['Spatial continuity', 'Number of pairs', 'Average distance'])
-		return df 
-
-	def plot_experimental_function(self, type_var, show_pairs = False):
-
-		'''plot_experimental_function
-		Args:
-		 show_pairs (bool, optional): If True shows the number of pairs calculated for each experimental continuity function value 	
-		 type_var (string): String containing the type of spatial continuity function to calculate
-		 					5 admissible functions are possible:
-
-							"Variogram"
-			 				"Covariogram"
-			 				"Correlogram"
-			 				"PairWise"
-			 				"RelativeVariogram" 
-		Returns:
-		 plot (matplotlib.pyplot): Plot of experimental continuity function 
-		'''
-
-		df = self.calculate_experimental_function(type_var)
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-
-		ax.plot(df['Average distance'].values, df['Spatial continuity'].values)
-		ax.set_xlabel('Lag distance (h)')
-		ax.set_ylabel(type_var)
-		ax.set_title('Experimental continuity function : {} , azimuth {}  and dip {} '.format(str(type_var), str(self.azimuth), str(self.dip)))
-		if show_pairs == True:
-			x, y = df['Average distance'].values, df['Spatial continuity'].values
-			for i, j  in enumerate(df['Number of pairs'].values):
-				ax.annotate(str(j), xy =(x[i], y[i]), xytext =(x[i], (y[i]+0.05*y[i])))
-			ax.set_ylim((min(y),1.10*max(y)))
-		plt.grid()
-		plt.show()
-
-
-	def plot_experimental_function_omni(self, type_var, show_pairs = False):
-
-		'''plot_experimental_function)_omni
-		Args:
-		 show_pairs (bool, optional): If True shows the number of pairs calculated for each experimental continuity function value 	
-		 type_var (string): String containing the type of spatial continuity function to calculate
-		 					5 admissible functions are possible:
-
-							"Variogram"
-			 				"Covariogram"
-			 				"Correlogram"
-			 				"PairWise"
-			 				"RelativeVariogram" 
-		Returns:
-		 plot (matplotlib.pyplot): Plot of omnidirecional experimental continuity function 
-		'''
-
-		df = self.calculate_experimental_function_omni(type_var)
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-
-		ax.plot(df['Average distance'].values, df['Spatial continuity'].values)
-		ax.set_xlabel('Lag distance (h)')
-		ax.set_ylabel(type_var)
-		ax.set_title('Experimental continuity function : {} , azimuth {}  and dip {} '.format(str(type_var), str(self.azimuth), str(self.dip)))
-		if show_pairs == True:
-			x, y = df['Average distance'].values, df['Spatial continuity'].values
-			for i, j  in enumerate(df['Number of pairs'].values):
-				ax.annotate(str(j), xy =(x[i], y[i]), xytext =(x[i], (y[i]+0.05*y[i])))
-			ax.set_ylim((min(y),1.10*max(y)))
-		plt.grid()
-		plt.show()
 
 	def modelling(self, experimental_dataframe, rotation_reference, model_func, ranges, contribution, nugget, inverted= False, plot_graph = True ):
 
@@ -636,13 +440,31 @@ class funcs_3D:
 
 
 
+data = np.loadtxt("Ferro 3d.dat", skiprows= 1, unpack=False)
+df = pd.DataFrame(data, columns=['X','Y','Z','fe'])
 
 
 
+nlags = 10
+lagdistance= 80
+lineartolerance = 40
+htolerance = 45.0
+vtolerance = 45.0
+hband = 40
+vband = 40 
+vband = 40
+azimuth = 157.0
+dip = 20.0
+
+gamma = funcs_3D(df,'X','Y','Z','fe','fe',nlags,lagdistance,
+                         lineartolerance, htolerance, vtolerance, 
+                         hband, vband, azimuth,dip)
 
 
 
-
+# Calculate variogram values 
+variogram = gamma.calculate_experimental_function("Variogram")
+print(variogram)
 
 
 
