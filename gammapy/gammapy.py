@@ -5,24 +5,15 @@
 import numpy as np 
 import pandas as pd 
 import matplotlib.pyplot as plt 
-import itertools as it 
-from scipy import signal 
 from sklearn.neighbors import KNeighborsRegressor
 from mpl_toolkits.mplot3d import Axes3D
 import math 
 import numba
-import scipy
-import multiprocessing
-
-plt.style.use('seaborn-muted')
 import warnings
 
 
-import pathlib
-import time
- 
-script_dir = pathlib.Path(__file__).parent.resolve()
 
+plt.style.use('seaborn-muted')
 
 class funcs_3D:
 
@@ -50,6 +41,7 @@ class funcs_3D:
 	   vband  (double): vertical bandwidth of spatial functions  
 	   azimuth  (double): Azimuth value for experimental continuity function in degrees 
 	   dip (double): Dip value for experimental continuity functions in degrees 
+	   choice (double): Random size of sampling dataset if data is greater than 20.000
 	   Methods:
 	       distances(self) : Calculate the matrix distance of all pairs 
 	       permissible_pairs_omni (self, lag_multiply) : Calculate the permissible sample pairs for omnidirecional functions for irregular grids 
@@ -60,20 +52,29 @@ class funcs_3D:
 	       calculate_experimental_function(self, type_var) : Calculate the experimental continuity function for all lag values 
 	       calculate_experimental_function_omni(self, type_var) : Calculate the omnidirecional experimental continuity function for all lag values
 		"""
-		self.dataset = dataset
-		self.x_label = str(x_label)
-		self.y_label = str(y_label)
-		self.z_label = str(z_label)
-		self.head_property = str(head_property)
-		self.tail_property = str(tail_property)
-		self.nlags = int(nlags) 
-		self.lagdistance  = float(lagdistance)
-		self.lineartolerance = lineartolerance
-		self.htolerance = float(htolerance)
-		self.vtolerance = float(vtolerance)
-		self.hband = float(hband) 
-		self.vband = float(vband) 
-		self.azimuth = float(azimuth)
+		if type(dataset) is pd.DataFrame:
+			self.dataset = dataset
+		else:
+			raise ValueError("Dataset is not a pandas DataFrame")
+		try:
+			self.x_label = str(x_label)
+			self.y_label = str(y_label)
+			self.z_label = str(z_label)
+			self.head_property = str(head_property)
+			self.tail_property = str(tail_property)
+		except:
+			raise ValueError("Labels must be a string columns of dataset Pandas DataFrame")
+		try:
+			self.nlags = int(nlags) 
+			self.lagdistance  = float(lagdistance)
+			self.lineartolerance = float(lineartolerance) 
+			self.htolerance = float(htolerance)
+			self.vtolerance = float(vtolerance)
+			self.hband = float(hband) 
+			self.vband = float(vband) 
+			self.azimuth = float(azimuth)
+		except:
+			raise ValueError("Experimental parameters must be numbers")
 		self.dip = float(dip) 
 		self.__dist = []
 		self.__type_var = "Variogram"
@@ -84,39 +85,46 @@ class funcs_3D:
 		self.__check_dip     = 0
 		self.__check_bandh   = 0
 		self.__check_bandv	  = 0
-		self.choice	  = 12000
-        
-	@numba.jit
+		self.choice	  = 1500
+
+
+	@numba.jit(fastmath=True)
 	def hdist(self , distancex, distancey, distancez):
 		dist =np.zeros(distancex.shape[0])
 		for i in range(distancex.shape[0]):
 			dist[i] = np.sqrt(distancex[i]**2 + distancey[i]**2 + distancez[i]**2) + 0.0000000001
 		return dist
 
-	@numba.jit
+	@numba.jit(fastmath=True)
+	def xydist(self , distanceh,):
+		cos = np.cos(np.radians(self.dip))
+		xy = np.zeros(distanceh.shape[0])
+		for i in range(distanceh.shape[0]):
+			xy[i] = np.abs(distanceh[i]*cos)
+		return xy
+
+	@numba.jit(fastmath=True)
 	def xdist(self , pairs):
 		dist =np.zeros(pairs.shape[0])
 		for i in range(pairs.shape[0]):
 			dist[i] = (pairs[i][0][0] - pairs[i][1][0])
 		return dist
 
-
-	@numba.jit
+	@numba.jit(fastmath=True)
 	def ydist(self , pairs):
 		dist =np.zeros(pairs.shape[0])
 		for i in range(pairs.shape[0]):
 			dist[i] = (pairs[i][0][1] - pairs[i][1][1])
 		return dist
 
-
-	@numba.jit
+	@numba.jit(fastmath=True)
 	def zdist(self , pairs):
 		dist =np.zeros(pairs.shape[0])
 		for i in range(pairs.shape[0]):
 			dist[i] = (pairs[i][0][2] - pairs[i][1][2])
 		return dist
 
-	@numba.jit
+	@numba.jit(fastmath=True)
 	def combin(self , points,n, max_dist):
 		dist =[]
 		p = 0
@@ -154,32 +162,25 @@ class funcs_3D:
 		HEAD = self.dataset[self.head_property].values
 		TAIL = self.dataset[self.tail_property].values
 		if (X.shape[0] > 20000):
-			warnings.warn("Warning .... dataset is too big > 20000! Applying random method \
-                          USING 12000 SAMPLE DATA")
+			warnings.warn("Warning .... dataset is too big (> 20000)! Applying random method ")
 			choice = int(self.choice)
-			X = np.random.choice(X, choice)
-			Y = np.random.choice(Y, choice)
-			Z = np.random.choice(Z, choice)
-			HEAD = np.random.choice(HEAD, choice)
-			TAIL = np.random.choice(TAIL, choice)
-		points = np.array(list(zip(X,Y,Z,HEAD,TAIL)))
+			if choice < 20000:
+				points = np.array(list(zip(X,Y,Z,HEAD,TAIL)))
+				points = np.array([points[np.random.randint(0,len(points))] for i in range(choice)])
+			else:
+				raise ValueError("Subset of random selected data is greater than datasize")
+		else:
+			points = np.array(list(zip(X,Y,Z,HEAD,TAIL)))
 		pairs = self.combin(points,points.shape[0], max_dist)
-#		pairs =np.array(list(it.combinations(points,2)))
-		distanceh  =[]
-		distancexy = []
 		distancex = self.xdist(pairs) 
 		distancey =  self.ydist(pairs) 
 		distancez =  self.zdist(pairs)
-		distanceh = self.hdist( distancex, distancey, distancez)
-		cos = np.cos(np.radians(self.dip))
-		distancexy = np.abs(distanceh*cos)
+		distanceh = self.hdist(distancex, distancey, distancez)
+		distancexy = self.xydist(distanceh)
 		head_1 = np.array([pair[0][3] for pair in pairs])
 		head_2 = np.array([pair[0][4] for pair in pairs])
 		tail_1 = np.array([pair[1][3] for pair in pairs])
 		tail_2 = np.array([pair[1][4] for pair in pairs])
-
-
-
 		distance_dataframe =  np.array([distancex, 
 						distancey, 
 						distancez, 
@@ -189,7 +190,6 @@ class funcs_3D:
 						head_2,
 						tail_1,
 						tail_2,]).T
- 		
 		return distance_dataframe[distanceh[:,] < max_dist ]
 
 	def __permissible_pairs (self , lag_multiply):
@@ -198,15 +198,11 @@ class funcs_3D:
 		Args:
 		 lag_multiply (double): Mutliple of lag distance
 		Returns:	
-		 distances (pandas.DataFrame): Returns the permissible sample pairs for omnidirecional functions
+		 distances (numpy array): Returns the permissible sample pairs for omnidirecional functions
 		'''
-
 		minimum_range = lag_multiply*self.lagdistance - self.lineartolerance
 		maximum_range = lag_multiply*self.lagdistance + self.lineartolerance
-
 		if self.omni == False:
-
-	
 			filter_dist = self.dist[(self.dist[:,4] >= minimum_range) & 
 							  (self.dist[:,4] <= maximum_range) & 
 							  (self.check_azimuth >= self.htol) &
@@ -214,11 +210,9 @@ class funcs_3D:
 							  (self.check_bandh < self.hband)&
 							  (self.check_bandv < self.vband)]
 		else:
-			filter_dist = self.dist[(self.dist[:,4] >= minimum_range) & 
-							  (self.dist[:,4] <= maximum_range)]
-
+			filter_dist = self.dist[(self.dist[:,4] >= self.minimum_range) & 
+							  (self.dist[:,4] <= self.maximum_range)]
 		return filter_dist
-
 
 	def __calculate_experimental(self , lag_multiply):
 
@@ -244,7 +238,7 @@ class funcs_3D:
 			raise Exception("Experimental continuity function not in admissible functions")
 
 		if points.size  != 0:
-			number_of_pairs = points.shape[0]
+			number_of_pairs = float(points.shape[0])
 			average_distance = points[:,4].mean()
 			value_exp = 0
 			if self.type_var == 'Variogram': 
@@ -267,12 +261,12 @@ class funcs_3D:
 			return [value_exp, number_of_pairs, average_distance]
 		return [np.nan , np.nan, np.nan]
 
-
-
 	def calculate_experimental_function(self, type_c, omni = False, plot_graph=False, show_pairs=False):
 
 		'''calculate_experimental_function
 		Args:	
+		 plot_graph (bool) = Boolean for selecting plotting experimental values 
+		 show_pairs (bool) = Boolean for selecting plotting experimental number of pairs 
 		 type_var (string): String containing the type of spatial continuity function to calculate
 		 					5 admissible functions are possible:
 							"Variogram"
@@ -300,8 +294,6 @@ class funcs_3D:
 
 		number_of_int = range(1, (self.nlags +1))
 		value_exp = np.array(list(map(self.__calculate_experimental, number_of_int)))
-
-
 		df = pd.DataFrame(value_exp, 
 						  columns = ['Spatial continuity', 'Number of pairs', 'Average distance'])
 		df = df.dropna()
@@ -319,10 +311,7 @@ class funcs_3D:
 				ax.set_ylim((min(y),1.10*max(y)))
 			plt.grid()
 			plt.show()
-
 		return df 
-
-
 
 	def modelling(self, experimental_dataframe, rotation_reference, model_func, ranges, contribution, nugget, inverted= False, plot_graph = True ):
 
@@ -353,29 +342,33 @@ class funcs_3D:
 			raise ValueError("Variogram structures must be the same size")
 
 
-		y = math.cos(math.radians(self.dip))*math.sin(math.radians(self.azimuth))
-		x = math.cos(math.radians(self.dip))*math.cos(math.radians(self.azimuth))  
+		y = math.cos(math.radians(self.dip))*math.cos(math.radians(self.azimuth))
+		x = math.cos(math.radians(self.dip))*math.sin(math.radians(self.azimuth))  
 		z = math.sin(math.radians(self.dip))
 
-		angle_azimuth = math.radians(90-rotation_reference[0])
-		angle_dip = -math.radians(90-rotation_reference[1])
-		angle_rake = math.radians(90-rotation_reference[2])
+		angle_azimuth = math.radians(rotation_reference[0])
+		angle_dip = math.radians(rotation_reference[1])
+		angle_rake = math.radians(rotation_reference[2])
 
 
-		rotation1 = [[math.cos(angle_azimuth), - math.sin(angle_azimuth), 0],
+		rotation1 = np.array([[math.cos(angle_azimuth), -math.sin(angle_azimuth), 0],
 					 [math.sin(angle_azimuth), math.cos(angle_azimuth), 0],
-					 [0,0,1]]
+					 [0,0,1]])
 
-		rotation2 = [[1, 0, 0],
+		rotation2 = np.array([[1, 0, 0],
 					 [0, math.cos(angle_dip), math.sin(angle_dip)],
-					 [0,-math.sin(angle_dip),math.cos(angle_dip)]]
+					 [0,-math.sin(angle_dip),math.cos(angle_dip)]])
 
-		rotation3 = [[math.cos(angle_rake), 0, -math.sin(angle_rake)],
+		rotation3 = np.array([[math.cos(angle_rake), 0, -math.sin(angle_rake)],
 					 [0, 1, 0],
-					 [math.sin(angle_rake),0,math.cos(angle_rake)]]
+					 [math.sin(angle_rake),0,math.cos(angle_rake)]])
 
-		rotation_transform = np.dot(rotation3,np.dot(rotation2,np.dot(rotation1, np.array([x,y,z]).T)))
+		rot1 = np.dot(rotation1.T, np.array([x,y,z]))
+		rot2 = np.dot(rotation2.T, rot1)
+		rot3= np.dot(rotation3.T,rot2)
 
+
+		print(rot3)
 		rotated_range =[]
 
 		for i in ranges:
@@ -384,7 +377,7 @@ class funcs_3D:
 			rangez = float(i[2])
 
 
-			rotated = (np.multiply(rotation_transform, [rangex, rangey, rangez]))
+			rotated = (np.multiply(rot3, np.array([rangex, rangey, rangez]).T))
 			rotated_range.append(math.sqrt(rotated[0]**2+rotated[1]**2+rotated[2]**2))
 
 		distancemax = experimental_dataframe['Average distance'].max()
@@ -435,10 +428,7 @@ class funcs_3D:
 			plt.title("Experimental continuity function modelling")
 			plt.grid()
 			plt.show()
-
-
 		return df 
-
 
 	def covariogram_map_3d(self,property_value, neighbors, division = 20, alpha= 0.7,  cutx =[-np.inf, np.inf],cuty =[-np.inf,np.inf],cutz =[-np.inf,np.inf], size =20 ):
 
@@ -504,5 +494,48 @@ class funcs_3D:
 
 
 
+nlags = 10
+lagdistance= 10
+lineartolerance = 20
+htolerance = 45.0
+vtolerance = 45.0
+hband = 20
+vband = 20
+azimuth = 45
+dip = 0
 
-		
+
+data = np.loadtxt("Níquel 3D.txt", skiprows= 1, unpack=False)
+df = pd.DataFrame(data, columns=['X','Y','Z','fe'])
+display(df.describe())
+display(df['fe'].var())
+
+gamma3 = funcs_3D(df,'X','Y','Z','fe','fe',nlags,lagdistance,
+                         lineartolerance, htolerance, vtolerance, 
+                         hband, vband, azimuth,dip)
+
+
+
+
+
+gamma3.choice = 500
+variogram3 = gamma3.calculate_experimental_function("Covariogram", plot_graph = False, show_pairs = True)
+
+
+
+# Calculate average covariogram maps in three dimensions 
+
+rotation_reference = [45,0,0]
+ranges = [[45,0,0]]
+model_func = ["Spherical"]
+contribution = [0.08]
+nugget = 0.10
+
+
+model_value3 = gamma3.modelling(experimental_dataframe = variogram3, 
+                rotation_reference = rotation_reference ,
+                model_func = model_func,
+                ranges =ranges ,
+                contribution = contribution,
+                nugget = nugget,
+                inverted = True)
