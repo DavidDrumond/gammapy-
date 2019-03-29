@@ -10,13 +10,15 @@ description: >-
 
 Spatial continuity functions are the representation of spatial dependencies among statistical variables and the space. They could be considered as the backbone of geostatistical analysis. Gammapy is a simple library to help spatial continuity calculations based on GamV from GSLib 90 package. 
 
-To install the package, clone the folder from repository and run the command in the gammapy\dist folder. 
+To install the package, clone the folder from repository and run the command in the gammapy\dist folder. You can also just compy the gammapy file to your directory and import to your project. 
 
 ```text
 pip install gammapy-0.1-py3-none-any.whl
 ```
 
 ## Example
+
+This is a simple example....
 
 ```text
 import numpy as np 
@@ -61,6 +63,8 @@ gamma.covariogram_map_3d(df, 'X', 'Y', 'Z', 'fe',plot=True, cuty=[600,650])
 
 ![Variogram modelling](.gitbook/assets/modelling%20%281%29.png)
 
+You might also check the jupyter notebook example at the directory...
+
 ## Dependencies 
 
 Gammapy needs several libraries to run properly. To better run gammapy functions, verify if you have installed these following dependencies.
@@ -95,120 +99,72 @@ The 3D experimental functions are related to funcs\_3D object. To create experim
 
 #### If you have any problem with the class parameters, please use the help\(\) command 
 
-The following methods are used to calculate spatial continuity functions:
+The following methods and attributes are used to calculate spatial statistics. Because spatial continuity functions demands high computer performance, it could be not allowed, for most machineries, calculate spatial statistics for a high quantity sample size. If dataset have more than 20.000 samples, it could be possible randomly select subsets from the dataset, obtained the same results. To better achieve high sample size spatial continuity functions,  change the choice attribute, and select a random sample according your wishes. 
 
-
+Obs: Dip values must be inserted with negative values
 
 ```text
-   """"funcs_3D
+
+	"""
+       funcs_3D
    Instances: 
-   dataset (pandas.Dataframe): Input Dataframe containing the dataset 
-   x_label (string): Label of x coordinates contained in dataset 
-   y_label (string): Label of y coordinates contained in dataset 
-   z_label (string): Label of z coordinates contained in dataset 
-   head_property  (string): label of head property contained in dataset 
-   tail property (string): label of tail property contained in dataset  
-   lagdistance (double): lag size of experimental spatial functions
-   lineartolerance (double): lag linear tolerance of experimental spatial functions 
-   htolerance (double): angular horizontal tolerance of experimental spatial functions in degrees   
-   vtolerance  (double): angular vertical tolerance of experimental spatial functions in degrees 
-   hband (double): horizontal bandwidth of spatial functions  
-   vband  (double): vertical bandwidth of spatial functions  
-   azimuth  (double): Azimuth value for experimental continuity function in degrees 
-   dip (double): Dip value for experimental continuity functions in degrees 
-
+       dataset (pandas.Dataframe): Input Dataframe containing the dataset 
+       x_label (string): Label of x coordinates contained in dataset 
+       y_label (string): Label of y coordinates contained in dataset 
+       z_label (string): Label of z coordinates contained in dataset 
+       head_property  (string): label of head property contained in dataset 
+       tail property (string): label of tail property contained in dataset  
+       lagdistance (double): lag size of experimental spatial functions
+       lineartolerance (double): lag linear tolerance of experimental spatial functions 
+       htolerance (double): angular horizontal tolerance of experimental spatial functions in degrees   
+	   vtolerance  (double): angular vertical tolerance of experimental spatial functions in degrees 
+	   hband (double): horizontal bandwidth of spatial functions  
+	   vband  (double): vertical bandwidth of spatial functions  
+	   azimuth  (double): Azimuth value for experimental continuity function in degrees 
+	   dip (double): Dip value for experimental continuity functions in degrees 
+	   choice (double): Random size of sampling dataset if data is greater than 20.000
+	   self.choice (int) : Select a number of samples to perform random method for high number of data
    Methods:
-   distances(self) : Calculate the matrix distance of all pairs 
-   permissible_pairs_omni (self, lag_multiply) : Calculate the permissible sample pairs for omnidirecional functions for irregular grids 
-   permissible_pairs(self , lag_multiply) : Calculate the permissible sample pairs for directional functions for irregular grids
-   hscatter(self, lag_multiply) : Calculate the hscatterplot for a distance multiple of a lag
-   calculate_experimental(self , lag_multiply,  type_var) : Calculate the experimental continuity function value for a distance multiple of a lag and a type of variogram 
-   calculate_experimental_omini(self , lag_multiply,  type_var) : Calculate the experimental omnidirecional continuity function value for a distance multiple of a lag and a type of variogram
-   calculate_experimental_function(self, type_var) : Calculate the experimental continuity function for all lag values 
-   calculate_experimental_function_omni(self, type_var) : Calculate the omnidirecional experimental continuity function for all lag values
+       calculate_experimental_omini(self , lag_multiply,  type_var) : Calculate the experimental omnidirecional continuity function value for a distance multiple of a lag and a type of variogram
+       modelling(self, experimental_dataframe, rotation_reference, model_func, ranges, contribution, nugget, inverted= False, plot_graph = True ): Modelling spatial continuity functions 
+       covariogram_map_3d(self,property_value, neighbors, division = 20, alpha= 0.7,  cutx =[-np.inf, np.inf],cuty =[-np.inf,np.inf],cutz =[-np.inf,np.inf], size =20 ): Estimate covariance maps in three dimensions
 
-   """
-```
-
-## funcs\_3D.distances\(\)
-
-Returns the 3Dimensional distances between all samples 
-
-```text
-'''distances
-Returns:	
- distance_dataframe (pandas.DataFrame): Pandas Dataframe containing all the distance metrics
- DX (pandas.DataFrame.Series) : Difference of x cartesian coordinates 
- DY (pandas.DataFrame.Series) : = diference of y cartesian values from the head and tails of the vector  
- DZ (pandas.DataFrame.Series) : = diference of z cartesian values from the head and tails of the vector 
- XY (pandas.DataFrame.Series) : = Distance projection on XY plane of the vector  
- H  (pandas.DataFrame.Series) : = Distance value from head and tail of vector  
- Var 1 (head) (pandas.DataFrame.Series) : Value from variable 1 on the head of vector 
- Var 2 (head) (pandas.DataFrame.Series) : Value from variable 2 on the head of vector  
- Var 1 (tail) (pandas.DataFrame.Series) : Value from variable 1 on the tail of vector 
- Var 2 (tail) (pandas.DataFrame.Series) : Value form variable 2 on the tail of vector 
- INDEX HEAD   (pandas.DataFrame.Series) : Index of propertie 1 sample 
- INDEX TAIL   (pandas.DataFrame.Series) : Index of propertie 2 sample
-'''
-```
-
-## funcs\_3D.permissible\_pairs\_omni \(lag\_multiply\) and funcs\_3D.permissible\_pairs \(lag\_multiply\)
-
-```text
-'''permissible_pairs_omni
-Args:
- lag_multiply (double): Mutliple of lag distance
-Returns:	
- distances (pandas.DataFrame): Returns the permissible sample pairs for omnidirecional functions
-'''
+	"""
 ```
 
 
 
-## funcs\_3D.calculate\_experimental\_function\(self, type\_var\) and funcs\_3D.calculate\_experimental\_function\_omni\(self, type\_var\)
+## funcs\_3D.calculate\_experimental\_function\(self, type\_c, omni = False, plot\_graph=False, show\_pairs=False\)
 
-
+This function computes the experimental continuity functions according a select model. 5 kinds of model are reliable, \(Variogram, Covariogram, Correlogram, PairWise and RelativeVariogram\).  If omnidirecional variogram will be performed, select the omni property equals True. This function could show the number of sample pairs on graph selecting the plot\_graph equals True. 
 
 ```text
 '''calculate_experimental_function
-Args:    
+Args:	
+ omni (bool)       = Boolean for selecting omnidirecional experimental function, if True select omnidirecional
+ plot_graph (bool) = Boolean for selecting plotting experimental values 
+ show_pairs (bool) = Boolean for selecting plotting experimental number of pairs 
  type_var (string): String containing the type of spatial continuity function to calculate
-                     5 admissible functions are possible:
-
-                    "Variogram"
-                     "Covariogram"
-                     "Correlogram"
-                     "PairWise"
-                     "RelativeVariogram" 
+ 					5 admissible functions are possible:
+					"Variogram"
+	 				"Covariogram"
+	 				"Correlogram"
+	 				"PairWise"
+	 				"RelativeVariogram" 
 Returns:
  df (pandas.DataFrame): Pandas Dataframe containing the experimental continuity functions of all lags
 '''
 ```
 
-## funcs\_3D.plot\_experimental\_function\(self, type\_var, show\_pairs = False\) and funcs\_3D.plot\_experimental\_function\_omni\(self, type\_var, show\_pairs = False\)
 
-
-
-```text
-'''plot_experimental_function
-Args:
- show_pairs (bool, optional): If True shows the number of pairs calculated for each experimental continuity function value     
- type_var (string): String containing the type of spatial continuity function to calculate
-                     5 admissible functions are possible:
-
-                    "Variogram"
-                     "Covariogram"
-                     "Correlogram"
-                     "PairWise"
-                     "RelativeVariogram" 
-Returns:
- plot (matplotlib.pyplot): Plot of experimental continuity function 
-'''
-```
 
 ## funcs\_3D.modelling\(self, experimental\_dataframe, rotation\_reference, model\_func, ranges, contribution, nugget, inverted= False, plot\_graph = True \)
 
+This function could be used for modelling the experimental functions. Rotation axis criteria is the same of GSLib program. Azimuth could be measure as clockwise the Y coordinate, dip values are negative to downward and Rake values are clockwise to the maximum direction.  For more information, see the geostats reference:
 
+[http://geostatisticslessons.com/lessons/anglespecification](http://geostatisticslessons.com/lessons/anglespecification)
+
+To plot Covariogram values, the inverted parameter could be change to True. If user want to plot the modelled graph, please change the plot\_graph to True. 
 
 ```text
 '''plot_experimental_function)_omni
@@ -233,23 +189,23 @@ Returns:
 
 ## funcs\_3D.covariogram\_map\_3d\(self, df, x\_label, y\_label, z\_label, property\_value, plot= False, division = 20, alpha= 0.7, cutx =\[-np.inf, np.inf\],cuty =\[-np.inf,np.inf\],cutz =\[-np.inf,np.inf\] \)
 
-
+An easy way to see the principal components of spatial anisotropy is to performed covariogram maps in three dimensions. This function interpolate the spatial data using Knearest neighbors, and calculating the Fourier Transform from the data. To change the number of neighbors please change the neighbors parameter.
 
 ```text
- '''covariogram_map_3d
- Args:
-  property_value(string): String containing the property to create the covariogram map 
-  plot(bool, optional): If False do not plot the covariogram map 
-  division(int, optional): discretize number of covariogram map 
-  alpha(float, optional): the level of transparency (0- transparent, 1-solid)
-  cutx (list, optional): list containing the minimum cutsize and the maximum cutsize for x coordinates
-  cuty (list, optional): list containing the minimum cutsize and the maximum cutsize for y coordinates
-  cutz (list, optional): list containing the minimum cutsize and the maximum cutsize for z coordinates
-
- Returns:
-  Covariance (np.array): Covariance map 
-  plot (matplotlib.pyplot): Plot of Covariance map in three dimensional scale 
- '''
+		'''covariogram_map_3d
+		Args:
+		property_value(string): String containing the property to create the covariogram map
+		neighbors (int) : Number of neighbors using in KNearest neighbors 
+		division(int, optional): discretize number of covariogram map
+		size(int, optional): size of bullet
+		alpha(float, optional): the level of transparency (0- transparent, 1-solid)
+		cutx (list, optional): list containing the minimum cutsize and the maximum cutsize for x coordinates
+		cuty (list, optional): list containing the minimum cutsize and the maximum cutsize for y coordinates
+		cutz (list, optional): list containing the minimum cutsize and the maximum cutsize for z coordinates
+						
+		Returns:
+		plot (matplotlib.pyplot): Plot of Covariance map in three dimensional scale 
+		'''
 ```
 
 
